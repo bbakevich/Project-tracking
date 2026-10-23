@@ -8,7 +8,18 @@
 <p id="notice" role="status"></p>
 <div class="workspace"><aside><h2>Projects</h2><form id="project-form"><label for="project-name">New project name</label><div class="input-row"><input id="project-name" maxlength="100" placeholder="e.g. Launch my website" required><button type="submit" aria-label="Create project">+</button></div></form><nav id="projects" aria-label="Projects"></nav></aside>
 <section class="board"><div class="board-heading"><div><p class="eyebrow">LET’S MAKE IT HAPPEN</p><h2 id="project-title">Your next big thing</h2></div><button id="delete-project" class="quiet" hidden>Delete project</button></div><p id="empty">Start by creating a project on the left. Then break it into small, doable tasks.</p>
-<div id="project-content" hidden><form id="task-form"><div><label for="task-name">What needs to get done?</label><input id="task-name" maxlength="200" placeholder="Add a task…" required></div><div><label for="task-date">Deadline (optional)</label><input id="task-date" type="date"></div><button type="submit">Add task</button></form><div class="filters" role="group" aria-label="Filter tasks"><button data-filter="all" aria-pressed="true">All tasks</button><button data-filter="open" aria-pressed="false">To do</button><button data-filter="done" aria-pressed="false">Completed</button></div><ul id="tasks"></ul><p id="no-tasks"></p></div>
+<div id="project-content" hidden><form id="task-form"><div><label for="task-name">What needs to get done?</label><input id="task-name" maxlength="200" placeholder="Add a task…" required></div><div><label for="task-date">Deadline (optional)</label><input id="task-date" type="date"></div><button type="submit">Add task</button></form><div class="filters" role="group" aria-label="Filter tasks"><button data-filter="all" aria-pressed="true">All tasks</button><button data-filter="open" aria-pressed="false">To do</button><button data-filter="done" aria-pressed="false">Completed</button></div><ul id="tasks"></ul><p id="no-tasks"></p>
+<section class="purchases-section" aria-labelledby="purchases-title">
+<h2 id="purchases-title">Purchases, POs &amp; invoices</h2>
+<p>Track each purchase from bid sheet to invoice. Confirm receipt of the item or service before recording an invoice.</p>
+<form id="purchase-form" class="purchase-form">
+<div><label for="purchase-name">Item or service</label><input id="purchase-name" maxlength="200" placeholder="e.g. Equipment rental" required></div>
+<div><label for="purchase-vendor">Vendor (optional)</label><input id="purchase-vendor" maxlength="100" placeholder="Company name"></div>
+<div><label for="purchase-po">PO number (optional)</label><input id="purchase-po" maxlength="100" placeholder="PO number"></div>
+<button type="submit">Add purchase</button>
+</form>
+<p id="purchase-summary" role="status"></p><ul id="purchases"></ul><p id="no-purchases"></p>
 </section></div>
-<footer>Saved in this browser only. Clearing browser data removes your projects. <button id="export" class="quiet">Download backup</button></footer>
+</section></div>
+<footer>Saved in this browser only. Clearing browser data removes your projects. <button id="export" class="quiet">Download backup</button> <label class="import-label" for="import">Restore backup</label><input id="import" type="file" accept=".json,application/json" hidden></footer>
 </main></body></html>
