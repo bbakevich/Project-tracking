@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Project tracker</title><link rel="stylesheet" href="./style.css"><script src="./app.js" defer></script></head>
+<body>
+<header><a class="brand" href="./index.html">◈ Project tracker</a><span>Your plans, moving forward.</span></header>
+<main>
+<section class="intro"><div><p class="eyebrow">YOUR WORKSPACE</p><h1>A little structure.<br>A lot of progress.</h1><p>Keep your projects, tasks, and deadlines in one place.</p></div><div class="summary" id="summary" aria-live="polite"></div></section>
+<p id="notice" role="status"></p>
+<div class="workspace"><aside><h2>Projects</h2><form id="project-form"><label for="project-name">New project name</label><div class="input-row"><input id="project-name" maxlength="100" placeholder="e.g. Launch my website" required><button type="submit" aria-label="Create project">+</button></div></form><nav id="projects" aria-label="Projects"></nav></aside>
+<section class="board"><div class="board-heading"><div><p class="eyebrow">LET’S MAKE IT HAPPEN</p><h2 id="project-title">Your next big thing</h2></div><button id="delete-project" class="quiet" hidden>Delete project</button></div><p id="empty">Start by creating a project on the left. Then break it into small, doable tasks.</p>
+<div id="project-content" hidden><form id="task-form"><div><label for="task-name">What needs to get done?</label><input id="task-name" maxlength="200" placeholder="Add a task…" required></div><div><label for="task-date">Deadline (optional)</label><input id="task-date" type="date"></div><button type="submit">Add task</button></form><div class="filters" role="group" aria-label="Filter tasks"><button data-filter="all" aria-pressed="true">All tasks</button><button data-filter="open" aria-pressed="false">To do</button><button data-filter="done" aria-pressed="false">Completed</button></div><ul id="tasks"></ul><p id="no-tasks"></p></div>
+</section></div>
+<footer>Saved in this browser only. Clearing browser data removes your projects. <button id="export" class="quiet">Download backup</button></footer>
+</main></body></html>
