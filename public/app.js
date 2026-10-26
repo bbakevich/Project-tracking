@@ -19,7 +19,7 @@ function render() {
   $('summary').replaceChildren(...[[projects.length,'Projects'],[all.filter(t=>!t.done).length,'Tasks to do'],[all.filter(t=>!t.done && t.date && t.date<today()).length,'Overdue']].map(([n,label])=>{ const d=el('div'); d.append(el('strong',String(n)),el('span',label)); return d; }));
   $('projects').replaceChildren(...projects.map(p=>{ const b=el('button',p.name); b.setAttribute('aria-current',String(p.id===selected)); b.onclick=()=>{selected=p.id;render();}; return b; }));
   const project = projects.find(p=>p.id===selected);
-  $('project-title').textContent = project?.name || 'Your next big thing';
+  $('project-title').textContent = project?.name || 'Select a project';
   $('empty').hidden=!!project; $('project-content').hidden=!project; $('delete-project').hidden=!project;
   if (!project) return;
   renderPurchases(project);
