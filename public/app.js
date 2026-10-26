@@ -23,7 +23,9 @@ function render() {
   $('empty').hidden=!!project; $('project-content').hidden=!project; $('delete-project').hidden=!project;
   if (!project) return;
   renderPurchases(project);
-  const tasks=project.tasks.filter(t=>filter==='all'||(filter==='done'?t.done:!t.done));
+  const tasks=project.tasks
+    .filter(t=>filter==='all'||(filter==='done'?t.done:!t.done))
+    .sort((a,b)=>(a.date || '9999-12-31').localeCompare(b.date || '9999-12-31'));
   $('no-tasks').textContent=tasks.length?'':(filter==='all'?'No tasks yet. Add your first small step above.':'No tasks in this view.');
   $('tasks').replaceChildren(...tasks.map(t=>{
     const li=el('li',null,'task'+(t.done?' done':'')); const check=el('input'); check.type='checkbox';check.checked=t.done;check.id='task-'+t.id;check.onchange=()=>{t.done=check.checked;save();};
