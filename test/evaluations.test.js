@@ -49,3 +49,24 @@ test('calendar year initiation is due January 31 and old review IDs remain stabl
   ensureYearReviews(e,'2026-11-09');assert.equal(e.reviews.length,3);assert.equal(e.reviews[0].done,true);assert.equal(e.reviews[1].due,'2026-12-20');assert.equal(e.reviews[2].due,'2026-01-31');
   assert.equal(makeReviews('probationary','2024-02-29',2024).find(r=>r.title==='Final').due,'2025-02-27');
 });
+test('growth plans accept old backups and validate new notes without changing review completion',()=>{
+  const {validGrowth,growthEstablished,missingGrowthPlans}=require('../public/evaluations');
+  const e=employee();e.reviews=makeReviews('regular',e.start,2026);
+  assert.doesNotThrow(()=>prepareEmployees([e]));
+  const initial=e.reviews.find(r=>r.title==='Initiate EE');initial.done=true;
+  assert.deepEqual(missingGrowthPlans(e),['CY 2026']);
+  initial.growth={discussionDate:'2026-01-15',goals:'Develop leadership skills',employeeComments:'Practice mentoring',supervisorComments:'Arrange training'};
+  assert.ok(validGrowth(initial.growth));assert.ok(growthEstablished(initial));assert.deepEqual(missingGrowthPlans(e),[]);
+  initial.growth.discussionDate='';assert.deepEqual(missingGrowthPlans(e),['CY 2026']);
+  const interim=e.reviews.find(r=>r.title==='Interim');interim.growth={...initial.growth,discussionDate:'2026-06-20'};
+  assert.deepEqual(missingGrowthPlans(e),[]);assert.equal(initial.done,true);
+  assert.doesNotThrow(()=>prepareEmployees(JSON.parse(JSON.stringify([e]))));
+  interim.growth.employeeComments=99;assert.throws(()=>prepareEmployees([e]));
+});
+test('growth follow-ups stop after final completion and exclude employee history',()=>{
+  const e=employee();e.reviews=makeReviews('regular',e.start,2026);e.reviews[0].done=true;
+  assert.equal(attentionItems([], [e],'2026-02-01',30).filter(i=>i.kind==='Growth plan').length,1);
+  e.reviews.find(r=>r.title==='Final').done=true;
+  assert.equal(attentionItems([], [e],'2026-02-01',30).filter(i=>i.kind==='Growth plan').length,0);
+  e.inactive=true;assert.equal(attentionItems([], [e],'2026-02-01',30).length,0);
+});

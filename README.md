@@ -43,3 +43,13 @@ New JSON backups contain projects (including history), employees, review complet
 Before updating, download a backup in the old tracker. Extract the complete new ZIP, including the new public/evaluations.js file. Open public/index.html and restore your backup. Use the updated version for future backups; old tracker versions do not understand the new backup format. No installation is required for opening the files directly; npm test runs the date, reminder, and annual-schedule tests with Node.js.
 
 Existing employee schedules automatically gain missing initiation steps. Pending probation finals on or after the anniversary move to the day before it; completed records and earlier custom due dates are retained. Missing historic initiation steps will appear overdue until confirmed complete.
+
+## Growth development plans
+
+Each evaluation cycle has an Initial growth plan under the employee's View schedule section. Record the initial discussion date, position/career growth goals, employee comments, and supervisor/manager comments. Click Save growth plan to save the entry. Save before navigating away or completing another step.
+
+Interim rows contain separate Growth-plan update fields for the discussion date, additional goals/progress, and both sets of comments. Final rows have a discussion date and final comments. These follow the Growth Development Plan section of the supplied New Mexico SPO evaluation form; the tracker continues to use the user's calendar-year deadlines rather than the form's fiscal-year wording. This does not fill or submit the official PDF.
+
+Once initiation is completed, a missing-plan follow-up appears until a discussion date and nonblank goals are recorded in the initial plan or an interim update. Completed finals and employees in History do not generate missing-plan follow-ups. The dashboard remains limited to five visible reminders unless expanded.
+
+Initial plans remain accessible after completing initiation. Plans are kept separately by CY/probation cycle and by review stage, persist in browser storage, and are included in Download backup / Restore backup. Existing backups without growth plans still load, and existing completions are retained.

@@ -17,8 +17,21 @@ function makeReviews(type, start, year) {
   const reviews = dates.map(([title,due], i) => ({id:`${cycle}-${i}`,cycle,title,due,done:false,completedOn:''}));
   return [{id:`${cycle}-initiation`,cycle,title:'Initiate EE',due:type==='probationary'?addMonthsClamped(start,1):`${year}-01-31`,done:false,completedOn:''}, ...reviews];
 }
+function validGrowth(growth) {
+  return growth && (growth.discussionDate === '' || validDay(growth.discussionDate)) && ['goals','employeeComments','supervisorComments'].every(k => typeof growth[k] === 'string');
+}
+function growthEstablished(review) {
+  return review.title !== 'Final' && validGrowth(review.growth) && !!review.growth.discussionDate && !!review.growth.goals.trim();
+}
+function missingGrowthPlans(employee) {
+  const cycles = [...new Set(employee.reviews.map(r => r.cycle))];
+  return cycles.filter(cycle => {
+    const reviews = employee.reviews.filter(r => r.cycle === cycle);
+    return reviews.some(r => r.title === 'Initiate EE' && r.done) && !reviews.some(r => r.title === 'Final' && r.done) && !reviews.some(growthEstablished);
+  });
+}
 function prepareEmployees(items) {
-  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn))))) throw Error('Invalid employee backup');
+  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn)) && (r.growth === undefined || validGrowth(r.growth))))) throw Error('Invalid employee backup');
   return items;
 }
 function ensureYearReviews(employee, day) {
@@ -46,6 +59,7 @@ function attentionItems(projects, employees, day, days) {
   }
   for (const e of employees.filter(e => !e.inactive)) {
     const pending = e.reviews.filter(r => !r.done);
+    for (const cycle of missingGrowthPlans(e)) items.push({date:'',label:`${e.name} — ${cycle}: create a growth plan (discussion date and goals).`,employeeId:e.id,kind:'Growth plan'});
     for (const r of pending) if (r.due <= limit) items.push({date:r.due,label:`${e.name} — ${r.cycle} ${r.title}`,employeeId:e.id,kind:'Evaluation'});
     if (!pending.length && e.type === 'probationary') items.push({date:'',label:`${e.name} — probation reviews complete; confirm the move to a calendar-year schedule after ${addMonthsClamped(e.start,12)}.`,employeeId:e.id,kind:'Schedule check'});
     if (!e.reviews.length) items.push({date:'',label:`${e.name} — no reviews scheduled. Check this employee’s schedule.`,employeeId:e.id,kind:'Schedule check'});
@@ -57,7 +71,7 @@ function renderAttention() {
   $('reminder-days').value = String(reminderDays);
   const day = today(), items = attentionItems(projects,employees,day,reminderDays);
   const late = items.filter(x => x.date && x.date < day).length;
-  $('attention-summary').textContent = items.length ? `${late} overdue · ${items.filter(x => x.date && x.date >= day).length} due within ${reminderDays} days · ${items.filter(x => !x.date).length} schedule checks` : `No overdue items or deadlines in the next ${reminderDays} days. Keep your employee roster up to date.`;
+  $('attention-summary').textContent = items.length ? `${late} overdue · ${items.filter(x => x.date && x.date >= day).length} due within ${reminderDays} days · ${items.filter(x => !x.date).length} follow-ups` : `No overdue items or deadlines in the next ${reminderDays} days. Keep your employee roster up to date.`;
   const expanded = $('show-attention').getAttribute('aria-expanded') === 'true';
   $('show-attention').hidden = items.length <= 5;
   $('show-attention').textContent = expanded ? 'Show fewer' : `Show all ${items.length} reminders`;
@@ -92,6 +106,7 @@ function renderEvaluations() {
     const pending=employee.reviews.filter(r=>!r.done).sort((a,b)=>a.due.localeCompare(b.due));
     const reviewDetails=el('details',null,'employee-details');
     reviewDetails.append(el('summary',`${pending.length} outstanding EE step${pending.length===1?'':'s'} — view schedule`));
+    for(const initial of employee.reviews.filter(r=>r.title==='Initiate EE')) reviewDetails.append(growthEditor(employee,initial));
     const list=el('ul');list.append(...pending.map(reviewRow));reviewDetails.append(list);card.append(reviewDetails);
     const done=employee.reviews.filter(r=>r.done).sort((a,b)=>b.due.localeCompare(a.due));
     if(done.length){const details=el('details');details.append(el('summary',`Completed reviews (${done.length})`));const list=el('ul');list.append(...done.map(reviewRow));details.append(list);reviewDetails.append(details);}
@@ -99,15 +114,43 @@ function renderEvaluations() {
     function reviewRow(review) {
       const li=el('li',null,'review-row');const label=el('label',null,'review-completion');const check=el('input');check.type='checkbox';check.checked=review.done;
       check.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} completed`);
-      check.onchange=()=>{review.done=check.checked;review.completedOn=review.done?today():'';save();};
+      check.onchange=()=>{if(check.checked && review.title==='Initiate EE' && !employee.reviews.some(r=>r.cycle===review.cycle&&growthEstablished(r)) && !confirm('The growth plan has not been recorded yet. Complete initiation anyway? A growth-plan follow-up will appear on the dashboard.')){check.checked=false;return;}review.done=check.checked;review.completedOn=review.done?today():'';save();};
       label.append(check,el('span',`${review.cycle} — ${review.title}`));li.append(label);
       const dateLabel=el('label','Due date');const input=el('input');input.type='date';input.required=true;input.value=review.due;
       input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} due date`);
       if(review.cycle==='Probation' && review.title==='Final') input.max=daysFrom(addMonthsClamped(employee.start,12),-1);
       input.onchange=()=>{if(!validDay(input.value)||(input.max&&input.value>input.max)){input.value=review.due;return;}review.due=input.value;save();};dateLabel.append(input);li.append(dateLabel);
-      li.append(el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':'')));return li;
+      const status=el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':''));li.append(status);if(review.title!=='Initiate EE')li.append(growthEditor(employee,review));return li;
     }
   }
+}
+function growthEditor(employee, review) {
+  const initial=review.title==='Initiate EE', final=review.title==='Final';
+  const details=el('details',null,'growth-editor');
+  const saved=review.growth;
+  details.append(el('summary',(initial?review.cycle+' — Initial growth plan':final?'Final growth-plan comments':'Growth-plan update')+(saved?' — saved':'')));
+  const form=el('form',null,'growth-form');
+  const hint=el('p',initial?'Discuss position and career growth at initiation. Record goals and both perspectives.':final?'Record final comments on growth over this evaluation period.':'Revisit the initial plan and record additional goals or progress.');form.append(hint);
+  const fields={};
+  const definitions=[['discussionDate',initial?'Initial growth discussion date':review.title+' discussion date','date']];
+  if(!final)definitions.push(['goals',initial?'Growth goals (position and career)':'Additional goals / progress','textarea']);
+  definitions.push(['employeeComments','Employee comments','textarea'],['supervisorComments','Supervisor / manager comments','textarea']);
+  for(const [key,labelText,type] of definitions){
+    const label=el('label',labelText);const input=el(type==='textarea'?'textarea':'input');
+    if(type==='date')input.type='date';else{input.rows=3;input.maxLength=10000;}
+    input.value=saved?.[key] || '';input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${labelText}`);
+    label.append(input);form.append(label);fields[key]=input;
+  }
+  const button=el('button','Save growth plan');button.type='submit';form.append(button);
+  form.onsubmit=event=>{
+    event.preventDefault();
+    const growth={discussionDate:fields.discussionDate.value,goals:fields.goals?.value.trim()||'',employeeComments:fields.employeeComments.value.trim(),supervisorComments:fields.supervisorComments.value.trim()};
+    if(!validGrowth(growth))return;
+    review.growth=growth;save();
+    const card=document.getElementById('employee-'+employee.id);if(card){card.querySelector('.employee-details').open=true;}
+    $('employee-message').textContent=`Growth plan saved for ${employee.name} — ${review.cycle} ${review.title}.`;
+  };
+  details.append(form);return details;
 }
 function initializeEvaluations() {
   $('employee-year').value=today().slice(0,4);
@@ -130,4 +173,4 @@ function initializeEvaluations() {
   // Refresh in an open tab at midnight as well as when returning to the tracker.
   function nextDay(){const now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);setTimeout(()=>{refresh();nextDay();},next-now+1000);}nextDay();
 }
-if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems};
+if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,growthEstablished,missingGrowthPlans};
