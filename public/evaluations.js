@@ -11,18 +11,27 @@ function addMonthsClamped(day, months) {
 function daysFrom(day, count) { const date = new Date(day + 'T00:00:00Z');date.setUTCDate(date.getUTCDate() + count);return date.toISOString().slice(0,10); }
 function makeReviews(type, start, year) {
   const dates = type === 'probationary'
-    ? [['Interim 1',addMonthsClamped(start,4)],['Interim 2',addMonthsClamped(start,8)],['Final',addMonthsClamped(start,12)]]
+    ? [['Interim 1',addMonthsClamped(start,4)],['Interim 2',addMonthsClamped(start,8)],['Final',daysFrom(addMonthsClamped(start,12),-1)]]
     : [['Interim',`${year}-06-30`],['Final',`${year}-12-31`]];
   const cycle = type === 'probationary' ? 'Probation' : `CY ${year}`;
-  return dates.map(([title,due], i) => ({id:`${cycle}-${i}`,cycle,title,due,done:false,completedOn:''}));
+  const reviews = dates.map(([title,due], i) => ({id:`${cycle}-${i}`,cycle,title,due,done:false,completedOn:''}));
+  return [{id:`${cycle}-initiation`,cycle,title:'Initiate EE',due:type==='probationary'?addMonthsClamped(start,1):`${year}-01-31`,done:false,completedOn:''}, ...reviews];
 }
 function prepareEmployees(items) {
   if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn))))) throw Error('Invalid employee backup');
   return items;
 }
 function ensureYearReviews(employee, day) {
-  if (employee.inactive || employee.type !== 'regular') return false;
+  if (employee.inactive) return false;
   let changed = false;
+  if (employee.type === 'probationary') {
+    for (const review of makeReviews('probationary',employee.start,employee.firstYear)) {
+      const existing = employee.reviews.find(r => r.id === review.id);
+      if (!existing) {employee.reviews.push(review);changed = true;}
+      else if (review.title === 'Final' && !existing.done && existing.due >= addMonthsClamped(employee.start,12)) {existing.due = review.due;changed = true;}
+    }
+    return changed;
+  }
   for (let year = employee.firstYear; year <= Number(day.slice(0,4)); year++) {
     for (const review of makeReviews('regular',employee.start,year)) {
       if (!employee.reviews.some(r => r.id === review.id)) { employee.reviews.push(review);changed = true; }
@@ -49,11 +58,14 @@ function renderAttention() {
   const day = today(), items = attentionItems(projects,employees,day,reminderDays);
   const late = items.filter(x => x.date && x.date < day).length;
   $('attention-summary').textContent = items.length ? `${late} overdue · ${items.filter(x => x.date && x.date >= day).length} due within ${reminderDays} days · ${items.filter(x => !x.date).length} schedule checks` : `No overdue items or deadlines in the next ${reminderDays} days. Keep your employee roster up to date.`;
-  $('attention').replaceChildren(...items.map(item => {
+  const expanded = $('show-attention').getAttribute('aria-expanded') === 'true';
+  $('show-attention').hidden = items.length <= 5;
+  $('show-attention').textContent = expanded ? 'Show fewer' : `Show all ${items.length} reminders`;
+  $('attention').replaceChildren(...(expanded ? items : items.slice(0,5)).map(item => {
     const li=el('li',null,'attention-item'); const b=el('button',item.label,'attention-link');
     b.onclick=()=>{
       if (item.projectId) {selected=item.projectId;render();$('project-title').scrollIntoView({block:'center'});}
-      else { const card=document.getElementById('employee-'+item.employeeId);if(card){card.scrollIntoView({block:'center'});card.focus();} }
+      else { const card=document.getElementById('employee-'+item.employeeId);if(card){const details=card.querySelector('.employee-details');if(details)details.open=true;card.scrollIntoView({block:'center'});card.focus();} }
     };
     const status=item.date ? (item.date<day?'Overdue':item.date===day?'Due today':'Upcoming') + ' · ' + formatDay(item.date) : 'Action needed';
     li.append(b,el('span',`${item.kind} · ${status}`,'date'+(item.date&&item.date<day?' overdue':'')));return li;
@@ -78,10 +90,11 @@ function renderEvaluations() {
       transition.onclick=()=>{if(!confirm('Finish probation tracking and add calendar-year interim and final reviews for this year? Probation history will be kept.'))return;employee.type='regular';employee.firstYear=Number(today().slice(0,4));ensureYearReviews(employee,today());save();};card.append(transition);
     }
     const pending=employee.reviews.filter(r=>!r.done).sort((a,b)=>a.due.localeCompare(b.due));
-    card.append(el('p',`${pending.length} outstanding review${pending.length===1?'':'s'}`));
-    const list=el('ul');list.append(...pending.map(reviewRow));card.append(list);
+    const reviewDetails=el('details',null,'employee-details');
+    reviewDetails.append(el('summary',`${pending.length} outstanding EE step${pending.length===1?'':'s'} — view schedule`));
+    const list=el('ul');list.append(...pending.map(reviewRow));reviewDetails.append(list);card.append(reviewDetails);
     const done=employee.reviews.filter(r=>r.done).sort((a,b)=>b.due.localeCompare(a.due));
-    if(done.length){const details=el('details');details.append(el('summary',`Completed reviews (${done.length})`));const list=el('ul');list.append(...done.map(reviewRow));details.append(list);card.append(details);}
+    if(done.length){const details=el('details');details.append(el('summary',`Completed reviews (${done.length})`));const list=el('ul');list.append(...done.map(reviewRow));details.append(list);reviewDetails.append(details);}
     return card;
     function reviewRow(review) {
       const li=el('li',null,'review-row');const label=el('label',null,'review-completion');const check=el('input');check.type='checkbox';check.checked=review.done;
@@ -90,14 +103,15 @@ function renderEvaluations() {
       label.append(check,el('span',`${review.cycle} — ${review.title}`));li.append(label);
       const dateLabel=el('label','Due date');const input=el('input');input.type='date';input.required=true;input.value=review.due;
       input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} due date`);
-      input.onchange=()=>{if(!validDay(input.value)){input.value=review.due;return;}review.due=input.value;save();};dateLabel.append(input);li.append(dateLabel);
+      if(review.cycle==='Probation' && review.title==='Final') input.max=daysFrom(addMonthsClamped(employee.start,12),-1);
+      input.onchange=()=>{if(!validDay(input.value)||(input.max&&input.value>input.max)){input.value=review.due;return;}review.due=input.value;save();};dateLabel.append(input);li.append(dateLabel);
       li.append(el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':'')));return li;
     }
   }
 }
 function initializeEvaluations() {
   $('employee-year').value=today().slice(0,4);
-  $('schedule-note').textContent='Default dates: probation interims at 4 and 8 months, final at the first anniversary; CY interim June 30, final December 31. You can change each due date after adding an employee.';
+  $('schedule-note').textContent='Default dates: probation interims at 4 and 8 months, final the day before the first anniversary. Initiate EE within one month of starting. CY initiation by January 31, interim June 30, final December 31. You can change each due date after adding an employee.';
   $('employee-type').onchange=()=>{$('employee-year-field').hidden=$('employee-type').value==='probationary';$('employee-year').required=$('employee-type').value==='regular';$('employee-start').required=$('employee-type').value==='probationary';};
   $('employee-form').onsubmit=e=>{
     e.preventDefault();const name=$('employee-name').value.trim(),start=$('employee-start').value,type=$('employee-type').value,year=Number($('employee-year').value);
@@ -107,6 +121,7 @@ function initializeEvaluations() {
     const employee={id:crypto.randomUUID(),name,start,type,firstYear:year,inactive:false,reviews:type==='probationary'?makeReviews(type,start,year):[]};
     ensureYearReviews(employee,today());employees.push(employee);e.target.reset();$('employee-year').value=today().slice(0,4);$('employee-type').onchange();$('employee-message').textContent='Employee added. Check the suggested due dates and adjust them to your policy.';save();
   };
+  $('show-attention').onclick=()=>{const b=$('show-attention');b.setAttribute('aria-expanded',String(b.getAttribute('aria-expanded')!=='true'));renderAttention();};
   $('reminder-days').onchange=()=>{reminderDays=Number($('reminder-days').value);save();};
   function refresh(){let changed=false;for(const employee of employees)if(ensureYearReviews(employee,today()))changed=true;if(changed)save();else render();}
   let added=false;for(const employee of employees)if(ensureYearReviews(employee,today()))added=true;
