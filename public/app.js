@@ -1,26 +1,51 @@
 const key = 'project-tracker-v1';
 const $ = id => document.getElementById(id);
-let projects = [], selected, filter = 'all';
+let projects = [], employees = [], reminderDays = 30, selected, filter = 'all', storageBlocked = false;
 try {
-  const saved = JSON.parse(localStorage.getItem(key) || '[]');
-  if (!Array.isArray(saved) || !saved.every(p => typeof p.id === 'string' && typeof p.name === 'string' && Array.isArray(p.tasks) && p.tasks.every(t => typeof t.id === 'string' && typeof t.name === 'string' && typeof t.done === 'boolean' && typeof t.date === 'string'))) throw Error();
-  projects = prepareProjects(saved);
-} catch { $('notice').textContent = 'Saved data could not be loaded. Download a backup before making changes if you need to preserve the current session.'; }
+  const state = prepareState(JSON.parse(localStorage.getItem(key) || '[]'));
+  projects = state.projects; employees = state.employees; reminderDays = state.reminderDays;
+} catch {
+  storageBlocked = true;
+  $('notice').textContent = 'Saved data could not be loaded. Automatic saving is paused to protect it. Restore a valid backup to continue.';
+}
+function prepareState(value) {
+  if (Array.isArray(value)) return {projects: prepareProjects(value), employees: [], reminderDays: 30};
+  if (!value || value.version !== 2 || ![30,60,90].includes(value.reminderDays)) throw Error('Invalid backup');
+  return {projects: prepareProjects(value.projects), employees: prepareEmployees(value.employees), reminderDays: value.reminderDays};
+}
+function stateForBackup() { return {version: 2, projects, employees, reminderDays}; }
 function prepareProjects(items) {
   if (!Array.isArray(items) || !items.every(p => p && typeof p.id === 'string' && typeof p.name === 'string' && Array.isArray(p.tasks) && p.tasks.every(t => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.done === 'boolean' && typeof t.date === 'string') && (p.purchases === undefined || (Array.isArray(p.purchases) && p.purchases.every(x => x && ['id','name','vendor','po'].every(k => typeof x[k] === 'string') && ['bidSent','poReceived','received','invoice'].every(k => typeof x[k] === 'boolean')))))) throw Error('Invalid backup');
-  return items.map(p => ({...p, purchases: (p.purchases || []).map(x => ({...x, invoice: x.received && x.invoice}))}));
+  return items.map(p => ({...p, archived: p.archived === true, purchases: (p.purchases || []).map(x => ({...x, invoice: x.received && x.invoice}))}));
 }
-selected = projects[0]?.id;
-function save() { try { localStorage.setItem(key, JSON.stringify(projects)); $('notice').textContent = ''; } catch { $('notice').textContent = 'Your browser could not save these changes. Download a backup before closing this page.'; } render(); }
+selected = projects.find(p => !p.archived)?.id;
+function save() {
+  if (!storageBlocked) {
+    try { localStorage.setItem(key, JSON.stringify(stateForBackup())); $('notice').textContent = ''; }
+    catch { $('notice').textContent = 'Your browser could not save these changes. Download a backup before closing this page.'; }
+  }
+  render();
+}
 function el(tag, text, className) { const node = document.createElement(tag); if (text) node.textContent = text; if (className) node.className = className; return node; }
 function today() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function render() {
-  const all = projects.flatMap(p => p.tasks);
-  $('summary').replaceChildren(...[[projects.length,'Projects'],[all.filter(t=>!t.done).length,'Tasks to do'],[all.filter(t=>!t.done && t.date && t.date<today()).length,'Overdue']].map(([n,label])=>{ const d=el('div'); d.append(el('strong',String(n)),el('span',label)); return d; }));
-  $('projects').replaceChildren(...projects.map(p=>{ const b=el('button',p.name); b.setAttribute('aria-current',String(p.id===selected)); b.onclick=()=>{selected=p.id;render();}; return b; }));
+  const active = projects.filter(p => !p.archived);
+  const all = active.flatMap(p => p.tasks);
+  renderEvaluations();
+  renderAttention();
+  $('summary').replaceChildren(...[[active.length,'Active projects'],[all.filter(t=>!t.done).length,'Pending tasks'],[all.filter(t=>!t.done && t.date && t.date<today()).length,'Overdue tasks']].map(([n,label])=>{ const d=el('div'); d.append(el('strong',String(n)),el('span',label)); return d; }));
+  function projectButton(p) {
+    const b=el('button',p.name); b.setAttribute('aria-current',String(p.id===selected)); b.onclick=()=>{selected=p.id;render();}; return b;
+  }
+  $('projects').replaceChildren(...active.map(projectButton));
+  const history = projects.filter(p => p.archived);
+  $('project-history').replaceChildren(...history.map(projectButton));
+  $('history-count').textContent = `(${history.length})`;
   const project = projects.find(p=>p.id===selected);
   $('project-title').textContent = project?.name || 'Select a project';
   $('empty').hidden=!!project; $('project-content').hidden=!project; $('delete-project').hidden=!project;
+  $('archive-project').hidden = !project;
+  $('archive-project').textContent = project?.archived ? 'Restore project' : 'Finish project';
   if (!project) return;
   renderPurchases(project);
   const tasks=project.tasks
@@ -34,11 +59,11 @@ function render() {
     const remove=el('button','×','quiet');remove.setAttribute('aria-label','Delete task '+t.name);remove.onclick=()=>{project.tasks=project.tasks.filter(x=>x.id!==t.id);save();};li.append(remove);return li;
   }));
 }
-$('project-form').onsubmit=e=>{e.preventDefault();const name=$('project-name').value.trim();if(!name)return;const p={id:crypto.randomUUID(),name,tasks:[],purchases:[]};projects.push(p);selected=p.id;e.target.reset();save();$('task-name').focus();};
+$('project-form').onsubmit=e=>{e.preventDefault();const name=$('project-name').value.trim();if(!name)return;const p={id:crypto.randomUUID(),name,tasks:[],purchases:[],archived:false};projects.push(p);selected=p.id;e.target.reset();save();$('task-name').focus();};
 $('task-form').onsubmit=e=>{e.preventDefault();const p=projects.find(p=>p.id===selected),name=$('task-name').value.trim();if(!p||!name)return;p.tasks.push({id:crypto.randomUUID(),name,date:$('task-date').value,done:false});e.target.reset();save();$('task-name').focus();};
-$('delete-project').onclick=()=>{const p=projects.find(p=>p.id===selected);if(p&&confirm(`Delete “${p.name}” and all its tasks and purchases?`)){projects=projects.filter(x=>x.id!==selected);selected=projects[0]?.id;save();}};
+$('delete-project').onclick=()=>{const p=projects.find(p=>p.id===selected);if(p&&confirm(`Delete “${p.name}” and all its tasks and purchases?`)){projects=projects.filter(x=>x.id!==selected);selected=projects.find(x=>!x.archived)?.id;save();}};
 document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render();});
-$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(projects,null,2)],{type:'application/json'}));const a=el('a');a.href=url;a.download='project-tracker-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+$('export').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(stateForBackup(),null,2)],{type:'application/json'}));const a=el('a');a.href=url;a.download='project-tracker-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function renderPurchases(project) {
   const purchases = project.purchases;
   $('no-purchases').textContent = purchases.length ? '' : 'No purchases yet. Add an item or service above.';
@@ -81,11 +106,24 @@ $('purchase-form').onsubmit = e => {
 $('import').onchange = async e => {
   const file = e.target.files[0];if (!file) return;
   try {
-    const imported = prepareProjects(JSON.parse(await file.text()));
-    if (confirm('Restore this backup? This replaces the projects currently in this browser. Download a current backup first if you want to keep them.')) {
-      projects = imported; selected = projects[0]?.id;save();
+    const raw = JSON.parse(await file.text());
+    const imported = prepareState(raw);
+    if (confirm('Restore this backup? This replaces your current projects. New backups also replace employees and reminder settings. Download a current backup first if you want to keep them.')) {
+      projects = imported.projects;
+      if (!Array.isArray(raw)) { employees = imported.employees; reminderDays = imported.reminderDays; }
+      selected = projects.find(p => !p.archived)?.id;storageBlocked = false;
+      for (const employee of employees) ensureYearReviews(employee,today());
+      save();
     }
   } catch { $('notice').textContent = 'Could not restore this file. Choose a valid project tracker JSON backup.'; }
   e.target.value = '';
 };
+$('archive-project').onclick = () => {
+  const p = projects.find(p => p.id === selected); if (!p) return;
+  if (!p.archived && !confirm('Move this project to History? Its tasks and purchases will be kept, and it will be removed from active reminders.')) return;
+  p.archived = !p.archived;
+  if (p.archived) selected = projects.find(x => !x.archived)?.id;
+  save();
+};
+initializeEvaluations();
 render();
