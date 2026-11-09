@@ -44,12 +44,12 @@ Before updating, download a backup in the old tracker. Extract the complete new 
 
 Existing employee schedules automatically gain missing initiation steps. Pending probation finals on or after the anniversary move to the day before it; completed records and earlier custom due dates are retained. Missing historic initiation steps will appear overdue until confirmed complete.
 
-## Growth development plans
+## Optional learning and improvement notes
 
-Each evaluation cycle has an Initial growth plan under the employee's View schedule section. Record the initial discussion date, position/career growth goals, employee comments, and supervisor/manager comments. Click Save growth plan to save the entry. Save before navigating away or completing another step.
+Under each employee's View schedule section, each cycle has an optional Learning & improvement entry. Use it to identify things the employee wants to learn or improve over the year. Interims and finals also have optional update/wrap-up notes. Click Save learning notes before navigating away. No discussion date, comments, goals, reminders, or completion gates are required for this feature. Existing discussion dates and employee/supervisor comments from previous versions remain visible under Previously saved discussion notes and are retained in backups.
 
-Interim rows contain separate Growth-plan update fields for the discussion date, additional goals/progress, and both sets of comments. Final rows have a discussion date and final comments. These follow the Growth Development Plan section of the supplied New Mexico SPO evaluation form; the tracker continues to use the user's calendar-year deadlines rather than the form's fiscal-year wording. This does not fill or submit the official PDF.
+## Evaluation ratings
 
-Once initiation is completed, a missing-plan follow-up appears until a discussion date and nonblank goals are recorded in the initial plan or an interim update. Completed finals and employees in History do not generate missing-plan follow-ups. The dashboard remains limited to five visible reminders unless expanded.
+Interim and final reviews have exactly four rating areas: Customer Service, Quality, Communication, and Overall. Each offers the form's four performance ratings plus Not rated, and optional comments. Ratings are saved independently per review; Overall is entered explicitly, not calculated. Click Save ratings. No rating fields are added to initiation, and ratings do not block completion.
 
-Initial plans remain accessible after completing initiation. Plans are kept separately by CY/probation cycle and by review stage, persist in browser storage, and are included in Download backup / Restore backup. Existing backups without growth plans still load, and existing completions are retained.
+Learning notes and ratings persist in browser storage and are included in Download backup / Restore backup. Existing backups without these fields still load. The tracker retains the user's calendar-year deadlines; it does not fill or submit the official PDF.

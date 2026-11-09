@@ -20,18 +20,13 @@ function makeReviews(type, start, year) {
 function validGrowth(growth) {
   return growth && (growth.discussionDate === '' || validDay(growth.discussionDate)) && ['goals','employeeComments','supervisorComments'].every(k => typeof growth[k] === 'string');
 }
-function growthEstablished(review) {
-  return review.title !== 'Final' && validGrowth(review.growth) && !!review.growth.discussionDate && !!review.growth.goals.trim();
-}
-function missingGrowthPlans(employee) {
-  const cycles = [...new Set(employee.reviews.map(r => r.cycle))];
-  return cycles.filter(cycle => {
-    const reviews = employee.reviews.filter(r => r.cycle === cycle);
-    return reviews.some(r => r.title === 'Initiate EE' && r.done) && !reviews.some(r => r.title === 'Final' && r.done) && !reviews.some(growthEstablished);
-  });
+const ratingAreas = ['Customer Service','Quality','Communication','Overall'];
+const ratingChoices = ['Does Not Achieve Performance Standards','Achieves Performance Standards','Exceeds Performance Standards','Exemplary'];
+function validRatings(ratings) {
+  return ratings && typeof ratings === 'object' && !Array.isArray(ratings) && Object.keys(ratings).every(area => ratingAreas.includes(area) && ratings[area] && ['',...ratingChoices].includes(ratings[area].rating) && typeof ratings[area].comments === 'string');
 }
 function prepareEmployees(items) {
-  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn)) && (r.growth === undefined || validGrowth(r.growth))))) throw Error('Invalid employee backup');
+  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn)) && (r.growth === undefined || validGrowth(r.growth)) && (r.ratings === undefined || validRatings(r.ratings))))) throw Error('Invalid employee backup');
   return items;
 }
 function ensureYearReviews(employee, day) {
@@ -59,7 +54,6 @@ function attentionItems(projects, employees, day, days) {
   }
   for (const e of employees.filter(e => !e.inactive)) {
     const pending = e.reviews.filter(r => !r.done);
-    for (const cycle of missingGrowthPlans(e)) items.push({date:'',label:`${e.name} — ${cycle}: create a growth plan (discussion date and goals).`,employeeId:e.id,kind:'Growth plan'});
     for (const r of pending) if (r.due <= limit) items.push({date:r.due,label:`${e.name} — ${r.cycle} ${r.title}`,employeeId:e.id,kind:'Evaluation'});
     if (!pending.length && e.type === 'probationary') items.push({date:'',label:`${e.name} — probation reviews complete; confirm the move to a calendar-year schedule after ${addMonthsClamped(e.start,12)}.`,employeeId:e.id,kind:'Schedule check'});
     if (!e.reviews.length) items.push({date:'',label:`${e.name} — no reviews scheduled. Check this employee’s schedule.`,employeeId:e.id,kind:'Schedule check'});
@@ -114,13 +108,13 @@ function renderEvaluations() {
     function reviewRow(review) {
       const li=el('li',null,'review-row');const label=el('label',null,'review-completion');const check=el('input');check.type='checkbox';check.checked=review.done;
       check.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} completed`);
-      check.onchange=()=>{if(check.checked && review.title==='Initiate EE' && !employee.reviews.some(r=>r.cycle===review.cycle&&growthEstablished(r)) && !confirm('The growth plan has not been recorded yet. Complete initiation anyway? A growth-plan follow-up will appear on the dashboard.')){check.checked=false;return;}review.done=check.checked;review.completedOn=review.done?today():'';save();};
+      check.onchange=()=>{review.done=check.checked;review.completedOn=review.done?today():'';save();};
       label.append(check,el('span',`${review.cycle} — ${review.title}`));li.append(label);
       const dateLabel=el('label','Due date');const input=el('input');input.type='date';input.required=true;input.value=review.due;
       input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} due date`);
       if(review.cycle==='Probation' && review.title==='Final') input.max=daysFrom(addMonthsClamped(employee.start,12),-1);
       input.onchange=()=>{if(!validDay(input.value)||(input.max&&input.value>input.max)){input.value=review.due;return;}review.due=input.value;save();};dateLabel.append(input);li.append(dateLabel);
-      const status=el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':''));li.append(status);if(review.title!=='Initiate EE')li.append(growthEditor(employee,review));return li;
+      const status=el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':''));li.append(status);if(review.title!=='Initiate EE')li.append(ratingsEditor(employee,review),growthEditor(employee,review));return li;
     }
   }
 }
@@ -128,28 +122,46 @@ function growthEditor(employee, review) {
   const initial=review.title==='Initiate EE', final=review.title==='Final';
   const details=el('details',null,'growth-editor');
   const saved=review.growth;
-  details.append(el('summary',(initial?review.cycle+' — Initial growth plan':final?'Final growth-plan comments':'Growth-plan update')+(saved?' — saved':'')));
+  details.append(el('summary',(initial?review.cycle+' — Learning & improvement (optional)':final?'Learning wrap-up (optional)':'Learning update (optional)')+(saved?' — saved':'')));
   const form=el('form',null,'growth-form');
-  const hint=el('p',initial?'Discuss position and career growth at initiation. Record goals and both perspectives.':final?'Record final comments on growth over this evaluation period.':'Revisit the initial plan and record additional goals or progress.');form.append(hint);
+  form.append(el('p','Optional: things the employee would like to learn or improve this year. Leave blank if there is nothing to add.'));
   const fields={};
-  const definitions=[['discussionDate',initial?'Initial growth discussion date':review.title+' discussion date','date']];
-  if(!final)definitions.push(['goals',initial?'Growth goals (position and career)':'Additional goals / progress','textarea']);
-  definitions.push(['employeeComments','Employee comments','textarea'],['supervisorComments','Supervisor / manager comments','textarea']);
+  const definitions=[['goals',initial?'What would this employee like to learn or improve?':final?'Learning and improvement wrap-up':'Learning progress or new interests','textarea']];
+  if(saved && (saved.discussionDate || saved.employeeComments || saved.supervisorComments)) {
+    const previous=el('details');previous.append(el('summary','Previously saved discussion notes'));
+    for(const [key,label] of [['discussionDate','Discussion date'],['employeeComments','Employee comments'],['supervisorComments','Supervisor / manager comments']]) if(saved[key]) previous.append(el('p',label+': '+saved[key]));
+    form.append(previous);
+  }
   for(const [key,labelText,type] of definitions){
     const label=el('label',labelText);const input=el(type==='textarea'?'textarea':'input');
     if(type==='date')input.type='date';else{input.rows=3;input.maxLength=10000;}
     input.value=saved?.[key] || '';input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${labelText}`);
     label.append(input);form.append(label);fields[key]=input;
   }
-  const button=el('button','Save growth plan');button.type='submit';form.append(button);
+  const button=el('button','Save learning notes');button.type='submit';form.append(button);
   form.onsubmit=event=>{
     event.preventDefault();
-    const growth={discussionDate:fields.discussionDate.value,goals:fields.goals?.value.trim()||'',employeeComments:fields.employeeComments.value.trim(),supervisorComments:fields.supervisorComments.value.trim()};
+    const growth={discussionDate:saved?.discussionDate || '',goals:fields.goals.value.trim(),employeeComments:saved?.employeeComments || '',supervisorComments:saved?.supervisorComments || ''};
     if(!validGrowth(growth))return;
     review.growth=growth;save();
     const card=document.getElementById('employee-'+employee.id);if(card){card.querySelector('.employee-details').open=true;}
-    $('employee-message').textContent=`Growth plan saved for ${employee.name} — ${review.cycle} ${review.title}.`;
+    $('employee-message').textContent=`Learning notes saved for ${employee.name} — ${review.cycle} ${review.title}.`;
   };
+  details.append(form);return details;
+}
+function ratingsEditor(employee,review) {
+  const details=el('details',null,'growth-editor ratings-editor');details.append(el('summary','Ratings'+(review.ratings?' — saved':'')));
+  const form=el('form',null,'growth-form');const fields={};
+  for(const area of ratingAreas){
+    const group=el('fieldset');group.append(el('legend',area));const label=el('label','Rating');const select=el('select');
+    select.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${area} rating`);
+    for(const value of ['',...ratingChoices]){const option=el('option',value||'Not rated');option.value=value;select.append(option);}
+    select.value=review.ratings?.[area]?.rating || '';label.append(select);group.append(label);
+    const commentLabel=el('label','Comments (optional)');const comments=el('textarea');comments.rows=2;comments.maxLength=10000;comments.value=review.ratings?.[area]?.comments || '';
+    comments.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${area} comments`);commentLabel.append(comments);group.append(commentLabel);form.append(group);fields[area]={select,comments};
+  }
+  const submit=el('button','Save ratings');submit.type='submit';form.append(submit);
+  form.onsubmit=event=>{event.preventDefault();review.ratings=Object.fromEntries(ratingAreas.map(area=>[area,{rating:fields[area].select.value,comments:fields[area].comments.value.trim()}]));save();document.getElementById('employee-'+employee.id).querySelector('.employee-details').open=true;$('employee-message').textContent=`Ratings saved for ${employee.name} — ${review.cycle} ${review.title}.`;};
   details.append(form);return details;
 }
 function initializeEvaluations() {
@@ -173,4 +185,4 @@ function initializeEvaluations() {
   // Refresh in an open tab at midnight as well as when returning to the tracker.
   function nextDay(){const now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);setTimeout(()=>{refresh();nextDay();},next-now+1000);}nextDay();
 }
-if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,growthEstablished,missingGrowthPlans};
+if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,validRatings,ratingAreas,ratingChoices};
