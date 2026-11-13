@@ -72,8 +72,8 @@ function renderAttention() {
   $('attention').replaceChildren(...(expanded ? items : items.slice(0,5)).map(item => {
     const li=el('li',null,'attention-item'); const b=el('button',item.label,'attention-link');
     b.onclick=()=>{
-      if (item.projectId) {selected=item.projectId;render();$('project-title').scrollIntoView({block:'center'});}
-      else { const card=document.getElementById('employee-'+item.employeeId);if(card){const details=card.querySelector('.employee-details');if(details)details.open=true;card.scrollIntoView({block:'center'});card.focus();} }
+      if (item.projectId) {selected=item.projectId;showView('projects');showProjectTab('tasks');render();$('project-title').scrollIntoView({block:'center'});}
+      else { showView('employees');const card=document.getElementById('employee-'+item.employeeId);if(card){const details=card.querySelector('.employee-details');if(details)details.open=true;card.scrollIntoView({block:'center'});card.focus();} }
     };
     const status=item.date ? (item.date<day?'Overdue':item.date===day?'Due today':'Upcoming') + ' · ' + formatDay(item.date) : 'Action needed';
     li.append(b,el('span',`${item.kind} · ${status}`,'date'+(item.date&&item.date<day?' overdue':'')));return li;

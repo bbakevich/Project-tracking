@@ -59,7 +59,7 @@ function render() {
     const remove=el('button','×','quiet');remove.setAttribute('aria-label','Delete task '+t.name);remove.onclick=()=>{project.tasks=project.tasks.filter(x=>x.id!==t.id);save();};li.append(remove);return li;
   }));
 }
-$('project-form').onsubmit=e=>{e.preventDefault();const name=$('project-name').value.trim();if(!name)return;const p={id:crypto.randomUUID(),name,tasks:[],purchases:[],archived:false};projects.push(p);selected=p.id;e.target.reset();save();$('task-name').focus();};
+$('project-form').onsubmit=e=>{e.preventDefault();const name=$('project-name').value.trim();if(!name)return;const p={id:crypto.randomUUID(),name,tasks:[],purchases:[],archived:false};projects.push(p);selected=p.id;e.target.reset();showProjectTab('tasks');save();$('task-name').focus();};
 $('task-form').onsubmit=e=>{e.preventDefault();const p=projects.find(p=>p.id===selected),name=$('task-name').value.trim();if(!p||!name)return;p.tasks.push({id:crypto.randomUUID(),name,date:$('task-date').value,done:false});e.target.reset();save();$('task-name').focus();};
 $('delete-project').onclick=()=>{const p=projects.find(p=>p.id===selected);if(p&&confirm(`Delete “${p.name}” and all its tasks and purchases?`)){projects=projects.filter(x=>x.id!==selected);selected=projects.find(x=>!x.archived)?.id;save();}};
 document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;document.querySelectorAll('[data-filter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));render();});
@@ -103,6 +103,7 @@ $('purchase-form').onsubmit = e => {
   project.purchases.push({id: crypto.randomUUID(), name, vendor: $('purchase-vendor').value.trim(), po: $('purchase-po').value.trim(), bidSent: false, poReceived: false, received: false, invoice: false});
   e.target.reset();save();$('purchase-name').focus();
 };
+$('restore').onclick = () => $('import').click();
 $('import').onchange = async e => {
   const file = e.target.files[0];if (!file) return;
   try {

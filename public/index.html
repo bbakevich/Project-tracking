@@ -1,30 +1,38 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Project Tracker</title><link rel="stylesheet" href="./style.css"><script src="./evaluations.js" defer></script><script src="./app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Project Tracker</title><link rel="stylesheet" href="./style.css"><script src="./navigation.js" defer></script><script src="./evaluations.js" defer></script><script src="./app.js" defer></script></head>
 <body>
 <header><a class="brand" href="./index.html">Project Tracker</a></header>
 <main>
-<section class="intro"><div><h1>Project Tracker</h1></div><div class="summary" id="summary" aria-live="polite"></div></section>
+<nav class="app-tabs" role="tablist" aria-label="Workspace">
+<button id="tab-dashboard" role="tab" data-view="dashboard" aria-controls="view-dashboard" aria-selected="true">Dashboard</button>
+<button id="tab-projects" role="tab" data-view="projects" aria-controls="view-projects" aria-selected="false" tabindex="-1">Projects</button>
+<button id="tab-employees" role="tab" data-view="employees" aria-controls="view-employees" aria-selected="false" tabindex="-1">Employees</button>
+<button id="tab-backup" role="tab" data-view="backup" aria-controls="view-backup" aria-selected="false" tabindex="-1">Backup</button>
+</nav>
 <p id="notice" role="status"></p>
-<section class="dashboard panel" aria-labelledby="dashboard-title"><h2 id="dashboard-title">Needs attention</h2>
+<section id="view-dashboard" role="tabpanel" aria-labelledby="tab-dashboard"><div class="summary" id="summary" aria-live="polite"></div><section class="dashboard panel" aria-labelledby="dashboard-title"><h2 id="dashboard-title">Needs attention</h2>
 <p>Upcoming and overdue reviews and project tasks, earliest first. Reminders appear here when you open the tracker; no email or background notifications.</p>
 <label for="reminder-days">Show upcoming items within</label><select id="reminder-days"><option value="30">30 days</option><option value="60">60 days</option><option value="90">90 days</option></select>
-<p id="attention-summary" role="status"></p><ul id="attention"></ul><button id="show-attention" class="quiet" aria-expanded="false" aria-controls="attention" hidden>Show all reminders</button></section>
-<section class="panel" aria-labelledby="employees-title"><h2 id="employees-title">Employee evaluations</h2>
-<p>Regular employees follow the calendar year (CY). Probationary finals are due before the first anniversary. Initiate EE within one month of starting or by January 31 of the new CY. Track deadlines, completion, and growth plans.</p>
-<form id="employee-form" class="employee-form">
+<p id="attention-summary" role="status"></p><ul id="attention"></ul><button id="show-attention" class="quiet" aria-expanded="false" aria-controls="attention" hidden>Show all reminders</button></section><div class="quick-actions"><button data-open-view="projects">Open projects</button><button data-open-view="employees">Open employees</button></div></section>
+<section id="view-employees" class="panel" role="tabpanel" aria-labelledby="tab-employees" hidden><h2 id="employees-title">Employee evaluations</h2>
+<p>Regular employees follow the calendar year (CY). Probationary finals are due before the first anniversary. Initiate EE within one month of starting or by January 31 of the new CY. Track deadlines, ratings, and employee development.</p>
+<details id="add-employee"><summary>Add an employee</summary><form id="employee-form" class="employee-form">
 <div><label for="employee-name">Employee name</label><input id="employee-name" maxlength="100" required></div>
 <div><label for="employee-type">Review schedule</label><select id="employee-type"><option value="regular">Regular — calendar year</option><option value="probationary">Probationary — first year</option></select></div>
 <div><label for="employee-start">Start date (optional for regular employees)</label><input id="employee-start" type="date"></div>
 <div id="employee-year-field"><label for="employee-year">First CY to track</label><input id="employee-year" type="number" min="2000" max="9998" required></div>
-<button type="submit">Add employee</button></form>
-<p id="schedule-note"></p><p id="employee-message" role="status"></p><ul id="employees"></ul>
+<button type="submit">Add employee</button></form></details>
+<details class="schedule-help"><summary>Review schedule guidance</summary><p id="schedule-note"></p></details><p id="employee-message" role="status"></p><ul id="employees"></ul>
 <details><summary>Employee history</summary><ul id="employee-history"></ul></details>
 </section>
-<div class="workspace"><aside><h2>Projects</h2><form id="project-form"><label for="project-name">New project name</label><div class="input-row"><input id="project-name" maxlength="100" placeholder="e.g. Launch my website" required><button type="submit" aria-label="Create project">+</button></div></form><nav id="projects" aria-label="Active projects"></nav><details id="project-history-section"><summary>Project history <span id="history-count"></span></summary><nav id="project-history" aria-label="Finished projects"></nav></details></aside>
+<section id="view-projects" role="tabpanel" aria-labelledby="tab-projects" hidden><div class="workspace"><aside><h2>Projects</h2><form id="project-form"><label for="project-name">New project name</label><div class="input-row"><input id="project-name" maxlength="100" placeholder="e.g. Launch my website" required><button type="submit" aria-label="Create project">+</button></div></form><nav id="projects" aria-label="Active projects"></nav><details id="project-history-section"><summary>Project history <span id="history-count"></span></summary><nav id="project-history" aria-label="Finished projects"></nav></details></aside>
 <section class="board"><div class="board-heading"><div><h2 id="project-title">Select a project</h2></div><div class="project-actions"><button id="archive-project" class="quiet" hidden>Finish project</button><button id="delete-project" class="quiet" hidden>Delete project</button></div></div><p id="empty">Start by creating a project on the left. Then break it into small, doable tasks.</p>
-<div id="project-content" hidden><form id="task-form"><div><label for="task-name">What needs to get done?</label><input id="task-name" maxlength="200" placeholder="Add a task…" required></div><div><label for="task-date">Deadline (optional)</label><input id="task-date" type="date"></div><button type="submit">Add task</button></form><div class="filters" role="group" aria-label="Filter tasks"><button data-filter="all" aria-pressed="true">All</button><button data-filter="open" aria-pressed="false">Pending</button><button data-filter="done" aria-pressed="false">Completed</button></div><ul id="tasks"></ul><p id="no-tasks"></p>
-<section class="purchases-section" aria-labelledby="purchases-title">
+<div id="project-content" hidden><div role="tablist" aria-label="Project sections" class="project-tabs">
+<button id="tab-tasks" role="tab" data-project-view="tasks" aria-controls="project-tasks" aria-selected="true">Tasks</button>
+<button id="tab-purchases" role="tab" data-project-view="purchases" aria-controls="project-purchases" aria-selected="false" tabindex="-1">Purchases / POs / Invoices</button></div>
+<section id="project-tasks" role="tabpanel" aria-labelledby="tab-tasks"><form id="task-form"><div><label for="task-name">What needs to get done?</label><input id="task-name" maxlength="200" placeholder="Add a task…" required></div><div><label for="task-date">Deadline (optional)</label><input id="task-date" type="date"></div><button type="submit">Add task</button></form><div class="filters" role="group" aria-label="Filter tasks"><button data-filter="all" aria-pressed="true">All</button><button data-filter="open" aria-pressed="false">Pending</button><button data-filter="done" aria-pressed="false">Completed</button></div><ul id="tasks"></ul><p id="no-tasks"></p></section>
+<section id="project-purchases" class="purchases-section" role="tabpanel" aria-labelledby="tab-purchases" hidden>
 <h2 id="purchases-title">Purchases, POs &amp; invoices</h2>
 <p>Track each purchase from bid sheet to invoice. Confirm receipt of the item or service before recording an invoice.</p>
 <form id="purchase-form" class="purchase-form">
@@ -35,6 +43,6 @@
 </form>
 <p id="purchase-summary" role="status"></p><ul id="purchases"></ul><p id="no-purchases"></p>
 </section></div>
-</section></div>
-<footer>Saved in this browser only. Clearing browser data removes your projects. <button id="export" class="quiet">Download backup</button> <label class="import-label" for="import">Restore backup</label><input id="import" type="file" accept=".json,application/json" hidden></footer>
+</section></div></section>
+<section id="view-backup" class="panel" role="tabpanel" aria-labelledby="tab-backup" hidden><h2>Backup &amp; restore</h2><p>Download a backup before updating the tracker. It includes projects, purchases, employees, ratings, and development notes.</p><p>Saved in this browser only. Clearing browser data removes your records.</p> <button id="export" class="quiet">Download backup</button> <button id="restore" class="quiet" type="button">Restore backup</button><input id="import" type="file" accept=".json,application/json" hidden></section><footer>Your data stays in this browser. Use the Backup tab to keep a separate copy.</footer>
 </main></body></html>
