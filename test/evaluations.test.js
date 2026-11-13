@@ -58,14 +58,12 @@ test('learning notes are optional and old discussion data stays valid',()=>{
   assert.equal(attentionItems([], [e],'2026-02-01',30).filter(i=>i.kind==='Growth plan').length,0);
   e.reviews[0].growth.employeeComments=99;assert.throws(()=>prepareEmployees([e]));
 });
-test('only the four chosen rating areas and supported ratings are accepted; blank ratings are optional',()=>{
-  const {ratingAreas,validRatings}=require('../public/evaluations');
-  assert.deepEqual(ratingAreas,['Customer Service','Quality','Communication','Overall']);
-  const ratings=Object.fromEntries(ratingAreas.map(area=>[area,{rating:'',comments:''}]));
-  assert.ok(validRatings(ratings));ratings.Quality={rating:'Exemplary',comments:'Consistent work'};assert.ok(validRatings(ratings));
-  const e=employee();e.reviews=makeReviews('regular',e.start,2026);e.reviews[1].ratings=ratings;assert.doesNotThrow(()=>prepareEmployees(JSON.parse(JSON.stringify([e]))));
-  ratings.Productivity={rating:'Exemplary',comments:''};assert.equal(validRatings(ratings),false);delete ratings.Productivity;
-  ratings.Quality.rating='made up';assert.equal(validRatings(ratings),false);
+test('old rating data is stripped while review deadlines, completion, development and other records survive',()=>{
+  const e=employee();e.reviews=makeReviews('regular',e.start,2026);e.reviews[1].done=true;e.reviews[1].completedOn='2026-06-20';e.reviews[1].ratings={Quality:{rating:'Exemplary',comments:'Private rating comments'}};
+  e.reviews[1].growth={discussionDate:'',goals:'Learn GIS',employeeComments:'',supervisorComments:''};
+  const clean=prepareEmployees([e]);assert.equal(Object.hasOwn(clean[0].reviews[1],'ratings'),false);assert.equal(clean[0].reviews[1].due,'2026-06-30');assert.equal(clean[0].reviews[1].done,true);assert.equal(clean[0].reviews[1].growth.goals,'Learn GIS');
+  assert.equal(Object.hasOwn(e.reviews[1],'ratings'),true);assert.equal(JSON.stringify(clean).includes('Private rating comments'),false);
+  e.inactive=true;e.reviews[0].ratings='unknown legacy shape';assert.ok(prepareEmployees([e])[0].reviews.every(r=>!Object.hasOwn(r,'ratings')));
 });
 test('employee development keeps legacy interests and priorities and preserves explicit new entries',()=>{
   const {developmentValues,validGrowth}=require('../public/evaluations');

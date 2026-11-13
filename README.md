@@ -52,14 +52,12 @@ Initial notes stay separate from interim and final updates. Interim/final sectio
 
 Earlier learning notes appear as employee interests at initiation or progress notes at interims/finals. Previous supervisor comments appear as supervisor priorities. Original goals, dates, and discussion comments are retained, with older comments available under Previously saved discussion notes. Existing backups remain compatible; new fields are included in Download backup and Restore backup.
 
-## Evaluation ratings
+## Evaluation scheduling only
 
-Interim and final reviews have exactly four rating areas: Customer Service, Quality, Communication, and Overall. Each offers the form's four performance ratings plus Not rated, and optional comments. Ratings are saved independently per review; Overall is entered explicitly, not calculated. Click Save ratings. No rating fields are added to initiation, and ratings do not block completion.
-
-Learning notes and ratings persist in browser storage and are included in Download backup / Restore backup. Existing backups without these fields still load. The tracker retains the user's calendar-year deadlines; it does not fill or submit the official PDF.
+Employee records contain initiation/interim/final due dates, completion, and optional development notes. Performance ratings and rating comments are not collected. Existing rating fields are removed when loading old saved data or restoring backups; future backups omit them. Previously downloaded backups are separate files and are not changed. The tracker does not fill or submit the official PDF.
 
 ## Navigation
 
-Dashboard is the starting screen with compact counts and reminders. Projects contains active projects and History; each selected project has Tasks and Purchases / POs / Invoices tabs. Employees contains the roster, evaluations, ratings, development notes, and employee history. Add an employee and review guidance expand only when needed. Backup contains Download backup and Restore backup. Dashboard reminders open the relevant project or employee. Arrow keys, Home, and End navigate tab groups. Switching tabs keeps form drafts in place; use each form's Save button to persist notes before making other changes or closing the page.
+Dashboard is the starting screen with compact counts and reminders. Projects contains active projects and History; each selected project has Tasks and Purchases / POs / Invoices tabs. Employees contains the roster, evaluation schedules, development notes, and employee history. Add an employee and review guidance expand only when needed. Backup contains Download backup and Restore backup. Dashboard reminders open the relevant project or employee. Arrow keys, Home, and End navigate tab groups. Switching tabs keeps form drafts in place; use each form's Save button to persist notes before making other changes or closing the page.
 
 This organization changes no saved-data format. Back up before downloading the full updated ZIP, extract it, and open public/index.html. Include public/navigation.js with the other website files. In the updated tracker, restore your JSON through the Backup tab.

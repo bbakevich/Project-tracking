@@ -2,8 +2,13 @@ const key = 'project-tracker-v1';
 const $ = id => document.getElementById(id);
 let projects = [], employees = [], reminderDays = 30, selected, filter = 'all', storageBlocked = false;
 try {
-  const state = prepareState(JSON.parse(localStorage.getItem(key) || '[]'));
+  const previous = JSON.parse(localStorage.getItem(key) || '[]');
+  const state = prepareState(previous);
   projects = state.projects; employees = state.employees; reminderDays = state.reminderDays;
+  if (previous?.employees?.some(e => e.reviews?.some(r => Object.hasOwn(r,'ratings')))) {
+    try {localStorage.setItem(key,JSON.stringify(state));}
+    catch {$('notice').textContent='Ratings were removed from this session, but the browser could not update its saved copy. Download a clean backup from the Backup tab.';}
+  }
 } catch {
   storageBlocked = true;
   $('notice').textContent = 'Saved data could not be loaded. Automatic saving is paused to protect it. Restore a valid backup to continue.';
@@ -13,7 +18,7 @@ function prepareState(value) {
   if (!value || value.version !== 2 || ![30,60,90].includes(value.reminderDays)) throw Error('Invalid backup');
   return {projects: prepareProjects(value.projects), employees: prepareEmployees(value.employees), reminderDays: value.reminderDays};
 }
-function stateForBackup() { return {version: 2, projects, employees, reminderDays}; }
+function stateForBackup() { return {version: 2, projects, employees: prepareEmployees(employees), reminderDays}; }
 function prepareProjects(items) {
   if (!Array.isArray(items) || !items.every(p => p && typeof p.id === 'string' && typeof p.name === 'string' && Array.isArray(p.tasks) && p.tasks.every(t => t && typeof t.id === 'string' && typeof t.name === 'string' && typeof t.done === 'boolean' && typeof t.date === 'string') && (p.purchases === undefined || (Array.isArray(p.purchases) && p.purchases.every(x => x && ['id','name','vendor','po'].every(k => typeof x[k] === 'string') && ['bidSent','poReceived','received','invoice'].every(k => typeof x[k] === 'boolean')))))) throw Error('Invalid backup');
   return items.map(p => ({...p, archived: p.archived === true, purchases: (p.purchases || []).map(x => ({...x, invoice: x.received && x.invoice}))}));

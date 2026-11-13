@@ -20,14 +20,9 @@ function makeReviews(type, start, year) {
 function validGrowth(growth) {
   return growth && (growth.discussionDate === '' || validDay(growth.discussionDate)) && ['goals','employeeComments','supervisorComments'].every(k => typeof growth[k] === 'string') && ['employeeInterests','supervisorPriorities','nextSteps','progressNotes'].every(k => growth[k] === undefined || typeof growth[k] === 'string');
 }
-const ratingAreas = ['Customer Service','Quality','Communication','Overall'];
-const ratingChoices = ['Does Not Achieve Performance Standards','Achieves Performance Standards','Exceeds Performance Standards','Exemplary'];
-function validRatings(ratings) {
-  return ratings && typeof ratings === 'object' && !Array.isArray(ratings) && Object.keys(ratings).every(area => ratingAreas.includes(area) && ratings[area] && ['',...ratingChoices].includes(ratings[area].rating) && typeof ratings[area].comments === 'string');
-}
 function prepareEmployees(items) {
-  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn)) && (r.growth === undefined || validGrowth(r.growth)) && (r.ratings === undefined || validRatings(r.ratings))))) throw Error('Invalid employee backup');
-  return items;
+  if (!Array.isArray(items) || !items.every(e => e && typeof e.id === 'string' && typeof e.name === 'string' && ['regular','probationary'].includes(e.type) && (validDay(e.start) || (e.type === 'regular' && e.start === '')) && Number.isInteger(e.firstYear) && e.firstYear >= 2000 && e.firstYear <= 9998 && typeof e.inactive === 'boolean' && Array.isArray(e.reviews) && e.reviews.every(r => r && ['id','cycle','title'].every(k => typeof r[k] === 'string') && validDay(r.due) && typeof r.done === 'boolean' && (r.completedOn === '' || validDay(r.completedOn)) && (r.growth === undefined || validGrowth(r.growth))))) throw Error('Invalid employee backup');
+  return items.map(employee => ({...employee,reviews:employee.reviews.map(review => {const {ratings,...record}=review;return record;})}));
 }
 function ensureYearReviews(employee, day) {
   if (employee.inactive) return false;
@@ -114,7 +109,7 @@ function renderEvaluations() {
       input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} due date`);
       if(review.cycle==='Probation' && review.title==='Final') input.max=daysFrom(addMonthsClamped(employee.start,12),-1);
       input.onchange=()=>{if(!validDay(input.value)||(input.max&&input.value>input.max)){input.value=review.due;return;}review.due=input.value;save();};dateLabel.append(input);li.append(dateLabel);
-      const status=el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':''));li.append(status);if(review.title!=='Initiate EE')li.append(ratingsEditor(employee,review),growthEditor(employee,review));return li;
+      const status=el('span',review.done?`Completed ${formatDay(review.completedOn || review.due)}`:review.due<day?'Overdue':review.due===day?'Due today':'Pending','date'+(!review.done&&review.due<day?' overdue':''));li.append(status);if(review.title!=='Initiate EE')li.append(growthEditor(employee,review));return li;
     }
   }
 }
@@ -167,21 +162,6 @@ function growthEditor(employee, review) {
   };
   details.append(form);return details;
 }
-function ratingsEditor(employee,review) {
-  const details=el('details',null,'growth-editor ratings-editor');details.append(el('summary','Ratings'+(review.ratings?' — saved':'')));
-  const form=el('form',null,'growth-form');const fields={};
-  for(const area of ratingAreas){
-    const group=el('fieldset');group.append(el('legend',area));const label=el('label','Rating');const select=el('select');
-    select.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${area} rating`);
-    for(const value of ['',...ratingChoices]){const option=el('option',value||'Not rated');option.value=value;select.append(option);}
-    select.value=review.ratings?.[area]?.rating || '';label.append(select);group.append(label);
-    const commentLabel=el('label','Comments (optional)');const comments=el('textarea');comments.rows=2;comments.maxLength=10000;comments.value=review.ratings?.[area]?.comments || '';
-    comments.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${area} comments`);commentLabel.append(comments);group.append(commentLabel);form.append(group);fields[area]={select,comments};
-  }
-  const submit=el('button','Save ratings');submit.type='submit';form.append(submit);
-  form.onsubmit=event=>{event.preventDefault();review.ratings=Object.fromEntries(ratingAreas.map(area=>[area,{rating:fields[area].select.value,comments:fields[area].comments.value.trim()}]));save();document.getElementById('employee-'+employee.id).querySelector('.employee-details').open=true;$('employee-message').textContent=`Ratings saved for ${employee.name} — ${review.cycle} ${review.title}.`;};
-  details.append(form);return details;
-}
 function initializeEvaluations() {
   $('employee-year').value=today().slice(0,4);
   $('schedule-note').textContent='Default dates: probation interims at 4 and 8 months, final the day before the first anniversary. Initiate EE within one month of starting. CY initiation by January 31, interim June 30, final December 31. You can change each due date after adding an employee.';
@@ -203,4 +183,4 @@ function initializeEvaluations() {
   // Refresh in an open tab at midnight as well as when returning to the tracker.
   function nextDay(){const now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);setTimeout(()=>{refresh();nextDay();},next-now+1000);}nextDay();
 }
-if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,developmentValues,validRatings,ratingAreas,ratingChoices};
+if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,developmentValues};
