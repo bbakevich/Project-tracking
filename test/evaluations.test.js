@@ -67,3 +67,14 @@ test('only the four chosen rating areas and supported ratings are accepted; blan
   ratings.Productivity={rating:'Exemplary',comments:''};assert.equal(validRatings(ratings),false);delete ratings.Productivity;
   ratings.Quality.rating='made up';assert.equal(validRatings(ratings),false);
 });
+test('employee development keeps legacy interests and priorities and preserves explicit new entries',()=>{
+  const {developmentValues,validGrowth}=require('../public/evaluations');
+  const review={title:'Initiate EE',growth:{discussionDate:'2026-01-15',goals:'Learn GIS',employeeComments:'Interested in mapping',supervisorComments:'Improve communication'}};
+  assert.deepEqual(developmentValues(review),{employeeInterests:'Learn GIS',supervisorPriorities:'Improve communication',nextSteps:'',progressNotes:''});
+  const growth={...review.growth,employeeInterests:'Learn leadership',supervisorPriorities:'Lead briefings',nextSteps:'Training and mentoring',progressNotes:'Course completed'};
+  assert.ok(validGrowth(growth));assert.equal(developmentValues({...review,growth}).employeeInterests,'Learn leadership');
+  assert.equal(developmentValues({title:'Interim',growth:review.growth}).progressNotes,'Learn GIS');
+  assert.equal(review.growth.goals,'Learn GIS');assert.equal(validGrowth({...growth,nextSteps:123}),false);
+  const e=employee();e.reviews=makeReviews('regular',e.start,2026);e.reviews[0].growth=growth;
+  const restored=prepareEmployees(JSON.parse(JSON.stringify([e])));assert.equal(restored[0].reviews[0].growth.nextSteps,'Training and mentoring');
+});

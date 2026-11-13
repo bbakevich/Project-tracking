@@ -18,7 +18,7 @@ function makeReviews(type, start, year) {
   return [{id:`${cycle}-initiation`,cycle,title:'Initiate EE',due:type==='probationary'?addMonthsClamped(start,1):`${year}-01-31`,done:false,completedOn:''}, ...reviews];
 }
 function validGrowth(growth) {
-  return growth && (growth.discussionDate === '' || validDay(growth.discussionDate)) && ['goals','employeeComments','supervisorComments'].every(k => typeof growth[k] === 'string');
+  return growth && (growth.discussionDate === '' || validDay(growth.discussionDate)) && ['goals','employeeComments','supervisorComments'].every(k => typeof growth[k] === 'string') && ['employeeInterests','supervisorPriorities','nextSteps','progressNotes'].every(k => growth[k] === undefined || typeof growth[k] === 'string');
 }
 const ratingAreas = ['Customer Service','Quality','Communication','Overall'];
 const ratingChoices = ['Does Not Achieve Performance Standards','Achieves Performance Standards','Exceeds Performance Standards','Exemplary'];
@@ -118,34 +118,52 @@ function renderEvaluations() {
     }
   }
 }
+function developmentValues(review) {
+  const saved=review.growth || {}, initial=review.title==='Initiate EE';
+  return {
+    employeeInterests:saved.employeeInterests ?? (initial?saved.goals || '':''),
+    supervisorPriorities:saved.supervisorPriorities ?? saved.supervisorComments ?? '',
+    nextSteps:saved.nextSteps ?? '',
+    progressNotes:saved.progressNotes ?? (!initial?saved.goals || '':'')
+  };
+}
 function growthEditor(employee, review) {
   const initial=review.title==='Initiate EE', final=review.title==='Final';
   const details=el('details',null,'growth-editor');
-  const saved=review.growth;
-  details.append(el('summary',(initial?review.cycle+' — Learning & improvement (optional)':final?'Learning wrap-up (optional)':'Learning update (optional)')+(saved?' — saved':'')));
+  const saved=review.growth, values=developmentValues(review);
+  details.append(el('summary',(initial?review.cycle+' — Employee Development':final?'Employee Development — final':'Employee Development — interim')+(saved?' — saved':'')));
   const form=el('form',null,'growth-form');
-  form.append(el('p','Optional: things the employee would like to learn or improve this year. Leave blank if there is nothing to add.'));
+  form.append(el('p','Optional conversation notes: what the employee wants to learn, your priorities, and how you will support their development. Revisit these at interims.'));
+  if(!initial){
+    const initialReview=employee.reviews.find(r=>r.cycle===review.cycle&&r.title==='Initiate EE');
+    if(initialReview?.growth){
+      const reference=el('details');reference.append(el('summary','Initial development conversation'));
+      const original=developmentValues(initialReview);
+      for(const [key,label] of [['employeeInterests','Employee interests'],['supervisorPriorities','Supervisor priorities'],['nextSteps','Agreed next steps'],['progressNotes','Progress notes']]) if(original[key])reference.append(el('p',label+': '+original[key]));
+      form.append(reference);
+    }
+  }
   const fields={};
-  const definitions=[['goals',initial?'What would this employee like to learn or improve?':final?'Learning and improvement wrap-up':'Learning progress or new interests','textarea']];
+  const definitions=[['employeeInterests','Employee interests'],['supervisorPriorities','Supervisor priorities'],['nextSteps','Agreed next steps'],['progressNotes','Progress notes']];
   if(saved && (saved.discussionDate || saved.employeeComments || saved.supervisorComments)) {
     const previous=el('details');previous.append(el('summary','Previously saved discussion notes'));
     for(const [key,label] of [['discussionDate','Discussion date'],['employeeComments','Employee comments'],['supervisorComments','Supervisor / manager comments']]) if(saved[key]) previous.append(el('p',label+': '+saved[key]));
     form.append(previous);
   }
-  for(const [key,labelText,type] of definitions){
-    const label=el('label',labelText);const input=el(type==='textarea'?'textarea':'input');
-    if(type==='date')input.type='date';else{input.rows=3;input.maxLength=10000;}
-    input.value=saved?.[key] || '';input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${labelText}`);
+  for(const [key,labelText] of definitions){
+    const label=el('label',labelText);const input=el('textarea');input.rows=3;input.maxLength=10000;input.value=values[key];
+    input.placeholder={employeeInterests:'What would they like to learn or improve this year?',supervisorPriorities:'What skills or knowledge do you want them to develop?',nextSteps:'Training, mentoring, assignments, or other support you agree to provide.',progressNotes:'What opportunities have you provided, and how is their development going?'}[key];
+    input.setAttribute('aria-label',`${employee.name}: ${review.cycle} ${review.title} ${labelText}`);
     label.append(input);form.append(label);fields[key]=input;
   }
-  const button=el('button','Save learning notes');button.type='submit';form.append(button);
+  const button=el('button','Save development notes');button.type='submit';form.append(button);
   form.onsubmit=event=>{
     event.preventDefault();
-    const growth={discussionDate:saved?.discussionDate || '',goals:fields.goals.value.trim(),employeeComments:saved?.employeeComments || '',supervisorComments:saved?.supervisorComments || ''};
+    const growth={discussionDate:'',goals:'',employeeComments:'',supervisorComments:'',...saved,...Object.fromEntries(definitions.map(([key])=>[key,fields[key].value.trim()]))};
     if(!validGrowth(growth))return;
     review.growth=growth;save();
-    const card=document.getElementById('employee-'+employee.id);if(card){card.querySelector('.employee-details').open=true;}
-    $('employee-message').textContent=`Learning notes saved for ${employee.name} — ${review.cycle} ${review.title}.`;
+    const card=document.getElementById('employee-'+employee.id);if(card)card.querySelector('.employee-details').open=true;
+    $('employee-message').textContent=`Development notes saved for ${employee.name} — ${review.cycle} ${review.title}.`;
   };
   details.append(form);return details;
 }
@@ -185,4 +203,4 @@ function initializeEvaluations() {
   // Refresh in an open tab at midnight as well as when returning to the tracker.
   function nextDay(){const now=new Date(),next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);setTimeout(()=>{refresh();nextDay();},next-now+1000);}nextDay();
 }
-if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,validRatings,ratingAreas,ratingChoices};
+if (typeof module !== 'undefined' && module.exports) module.exports={validDay,addMonthsClamped,daysFrom,makeReviews,prepareEmployees,ensureYearReviews,attentionItems,validGrowth,developmentValues,validRatings,ratingAreas,ratingChoices};

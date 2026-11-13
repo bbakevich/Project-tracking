@@ -44,9 +44,13 @@ Before updating, download a backup in the old tracker. Extract the complete new 
 
 Existing employee schedules automatically gain missing initiation steps. Pending probation finals on or after the anniversary move to the day before it; completed records and earlier custom due dates are retained. Missing historic initiation steps will appear overdue until confirmed complete.
 
-## Optional learning and improvement notes
+## Employee Development
 
-Under each employee's View schedule section, each cycle has an optional Learning & improvement entry. Use it to identify things the employee wants to learn or improve over the year. Interims and finals also have optional update/wrap-up notes. Click Save learning notes before navigating away. No discussion date, comments, goals, reminders, or completion gates are required for this feature. Existing discussion dates and employee/supervisor comments from previous versions remain visible under Previously saved discussion notes and are retained in backups.
+Each evaluation cycle has an optional Employee Development section under View schedule, with four fields: Employee interests, Supervisor priorities, Agreed next steps, and Progress notes. Record what employees want to learn, what you think they need to develop, the training/mentoring/assignments you agree to provide, and how those opportunities go. Click Save development notes before navigating away. These notes do not trigger reminders or block completing an EE.
+
+Initial notes stay separate from interim and final updates. Interim/final sections include an expandable reference to the initial development conversation. This provides a history of your support for employee development without adding another rating or checklist. Notes remain separate by evaluation cycle.
+
+Earlier learning notes appear as employee interests at initiation or progress notes at interims/finals. Previous supervisor comments appear as supervisor priorities. Original goals, dates, and discussion comments are retained, with older comments available under Previously saved discussion notes. Existing backups remain compatible; new fields are included in Download backup and Restore backup.
 
 ## Evaluation ratings
 
